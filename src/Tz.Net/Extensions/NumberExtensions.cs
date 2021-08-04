@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Numerics;
 
-namespace Tz.Net.Extensions
+namespace TezosSharp.Extensions
 {
     public static class NumberExtensions
     {

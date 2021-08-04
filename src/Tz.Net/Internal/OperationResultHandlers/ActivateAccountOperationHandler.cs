@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Numerics;
 
-namespace Tz.Net.Internal.OperationResultHandlers
+namespace TezosSharp.Internal.OperationResultHandlers
 {
     internal class ActivateAccountOperationHandler : IOperationHandler
     {

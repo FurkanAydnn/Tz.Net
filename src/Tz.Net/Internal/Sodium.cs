@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Tz.Net.Internal
+namespace TezosSharp.Internal
 {
     internal class Sodium
     {

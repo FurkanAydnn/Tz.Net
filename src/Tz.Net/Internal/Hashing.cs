@@ -1,8 +1,8 @@
 ﻿using Konscious.Security.Cryptography;
 
-namespace Tz.Net.Internal
+namespace TezosSharp.Internal
 {
-    internal class Hashing
+    public class Hashing
     {
         /// <summary>
         /// Blake2B hash a byte array.

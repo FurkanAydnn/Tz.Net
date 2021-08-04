@@ -1,35 +1,47 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Security;
+using NBitcoin;
 using TezosSharp.Internal;
 
 namespace TezosSharp.Security
 {
-    public sealed class Keys  : IKeys
+    public sealed class KeysSecp256k1 : IKeys
     {
         private const int PKHASH_BIT_SIZE = 20 * 8;
 
         public SecureString PublicKey { get; internal set; }
         public SecureString PrivateKey { get; internal set; }
         public string PublicHash { get; internal set; }
+        
+        public NBitcoin.Key BitcoinPrivateKey{ get; }
+        public PubKey BitcoinPublicKey { get; }
 
-        public Keys()
-        { }
-
-        public Keys(byte[] pk, byte[] sk)
+        public KeysSecp256k1(PubKey pubKey, NBitcoin.Key privateKey)
         {
-            PublicHash = B58C.Encode(Hashing.Generic(PKHASH_BIT_SIZE, pk), Prefix.tz1);
+            BitcoinPrivateKey = privateKey;
+            BitcoinPublicKey = pubKey;
+            
+            CrateKeys(Prefix.tz2);
+        }
+
+        private void CrateKeys(byte[] prefix) 
+        {
+            var sk = this.BitcoinPrivateKey.ToBytes();
+            var pk = this.BitcoinPublicKey.ToBytes();
+
+            PublicHash = B58C.Encode(Hashing.Generic(PKHASH_BIT_SIZE, pk), prefix);
 
             PublicKey = new SecureString();
             PrivateKey = new SecureString();
 
-            string encodedPK = B58C.Encode(pk, Prefix.edpk);
+            string encodedPK = B58C.Encode(pk, Prefix.sppk);
             foreach (char c in encodedPK)
             {
                 PublicKey.AppendChar(c);
             }
 
-            string encodedSK = B58C.Encode(sk, Prefix.edsk);
+            string encodedSK = B58C.Encode(sk, Prefix.spsk);
             foreach (char c in encodedSK)
             {
                 PrivateKey.AppendChar(c);
@@ -62,7 +74,7 @@ namespace TezosSharp.Security
         /// Do not store this result on the heap!
         /// </summary>
         /// <returns>Decrypted private key</returns>
-        internal string DecryptPrivateKey()
+        string DecryptPrivateKey()
         {
             IntPtr valuePtr = IntPtr.Zero;
             try

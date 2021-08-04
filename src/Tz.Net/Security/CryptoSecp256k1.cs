@@ -1,16 +1,15 @@
-﻿using Chaos.NaCl;
+﻿using NBitcoin;
 using System;
-using System.Collections.Generic;
 using TezosSharp.Extensions;
 using TezosSharp.Internal;
 
 namespace TezosSharp.Security
 {
-    public class Crypto : CryptoBase
+    public class CryptoSecp256k1 : CryptoBase
     {
-        Keys _keys;
+        KeysSecp256k1 _keys;
         
-        public Crypto(Keys keys)
+        public CryptoSecp256k1(KeysSecp256k1 keys)
         {
             _keys = keys;   
         }
@@ -19,19 +18,12 @@ namespace TezosSharp.Security
         {
             return ((IKeys)_keys).DecryptPublicKey();
         }
-    
+
         public override SignedMessage Sign(string bytes, string watermark = null)
         {
             return Sign(bytes, watermark?.HexToByteArray());
         }
 
-        /// <summary>
-        /// Sign message with private key.
-        /// </summary>
-        /// <param name="bytes">Message to sign.</param>
-        /// <param name="sk">Secret key used to sign.</param>
-        /// <param name="watermark">Watermark</param>
-        /// <returns>Signed message.</returns>
         public override SignedMessage Sign(string bytes, byte[] watermark = null)
         {
             byte[] bb = bytes.HexToByteArray();
@@ -46,13 +38,12 @@ namespace TezosSharp.Security
                 bb = bytesWithWatermark;
             }
 
-            // TODO: See if there's a way to further reduce potential attack vectors.
-            string sk = _keys.DecryptPrivateKey();
-
-            byte[] dsk = B58C.Decode(sk, Prefix.edsk);
             byte[] hash = Hashing.Generic(32 * 8, bb);
-            byte[] sig = Ed25519.Sign(hash, dsk);
-            string edsignature = B58C.Encode(sig, Prefix.edsig);
+            NBitcoin.Crypto.ECDSASignature signature = _keys.BitcoinPrivateKey.Sign(new uint256(hash));
+            TezosECDSASignature cosmosSignature = new TezosECDSASignature(signature);
+            byte[] sig = cosmosSignature.ByteSignature;
+
+            string edsignature = B58C.Encode(sig, Prefix.spsig1);
             string sbytes = bytes + sig.ToHexString();
 
             return new SignedMessage
@@ -64,7 +55,6 @@ namespace TezosSharp.Security
             };
         }
 
-       
         /// <summary>
         /// Verify a signed message with public key.
         /// </summary>
@@ -72,13 +62,14 @@ namespace TezosSharp.Security
         /// <param name="sig">Signed message to verify.</param>
         /// <param name="pk">Public key used for verification.</param>
         /// <returns></returns>
+        // TODO: Test this 
         public override bool Verify(string bytes, byte[] sig, string pk)
         {
             byte[] bb = bytes.HexToByteArray();
 
-            byte[] edpk = B58C.Decode(pk, Prefix.edpk);
+            byte[] sppk = B58C.Decode(pk, Prefix.sppk);
 
-            return Ed25519.Verify(sig, bb, edpk);
+            return new PubKey(sppk).Verify(new uint256(bb), sig);
         }
     }
 }

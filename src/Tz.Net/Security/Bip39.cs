@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Tz.Net.Security
+namespace TezosSharp.Security
 {
     public class Bip39
     {

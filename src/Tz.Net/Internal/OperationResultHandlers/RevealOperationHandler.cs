@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 
-namespace Tz.Net.Internal.OperationResultHandlers
+namespace TezosSharp.Internal.OperationResultHandlers
 {
     internal class RevealOperationHandler : IOperationHandler
     {

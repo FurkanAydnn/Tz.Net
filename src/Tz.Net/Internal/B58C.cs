@@ -1,12 +1,12 @@
 ﻿using Base58Check;
 using System;
 
-namespace Tz.Net.Internal
+namespace TezosSharp.Internal
 {
     /// <summary>
     /// Base58Check utility class.
     /// </summary>
-    internal class B58C
+    public class B58C
     {
         /// <summary>
         /// Base58Check encoding.

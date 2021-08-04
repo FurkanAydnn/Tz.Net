@@ -1,15 +1,12 @@
 ﻿using Newtonsoft.Json.Linq;
 
-namespace Tz.Net
+namespace TezosSharp
 {
     public class SendTransactionOperationResult : OperationResult
     {
-        public SendTransactionOperationResult()
-        { }
+        public SendTransactionOperationResult() { }
 
-        public SendTransactionOperationResult(JToken data)
-            : base(data)
-        { }
+        public SendTransactionOperationResult(JToken data) : base(data) { }
 
         public string Status { get; internal set; } = "unknown";
         public string ConsumedGas { get; internal set; } = "0";

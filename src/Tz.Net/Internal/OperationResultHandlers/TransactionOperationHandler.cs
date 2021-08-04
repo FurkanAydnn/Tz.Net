@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 
-namespace Tz.Net.Internal.OperationResultHandlers
+namespace TezosSharp.Internal.OperationResultHandlers
 {
     internal class TransactionOperationHandler : IOperationHandler
     {
