@@ -2,6 +2,19 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    
+    <Title>TezosSharp</Title>
+    <PackageId>TezosSharp</PackageId>
+    <Description></Description>
+    <Version>0.1.0</Version>
+
+    <Authors>BTCTrader</Authors>
+    <Company></Company>
+
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <RepositoryUrl>https://github.com/BTCTrader/Tz.Net</RepositoryUrl>
+
   </PropertyGroup>
 
   <ItemGroup>
