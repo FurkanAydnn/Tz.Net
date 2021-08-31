@@ -1,6 +1,6 @@
-﻿namespace Tz.Net.Internal
+﻿namespace TezosSharp.Internal
 {
-    internal static class Prefix
+    public static class Prefix
     {
         public static readonly byte[] tz1 = { 6, 161, 159 };
         public static readonly byte[] tz2 = { 6, 161, 161 };

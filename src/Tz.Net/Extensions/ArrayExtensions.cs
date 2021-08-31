@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Tz.Net.Extensions
+namespace TezosSharp.Extensions
 {
     public static class ArrayExtensions
     {

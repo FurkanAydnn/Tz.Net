@@ -1,4 +1,4 @@
-﻿namespace Tz.Net.Internal
+﻿namespace TezosSharp.Internal
 {
     internal static class Watermark
     {

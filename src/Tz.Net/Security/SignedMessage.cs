@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
-using Tz.Net.Internal;
+using TezosSharp.Internal;
 
-namespace Tz.Net.Security
+namespace TezosSharp.Security
 {
     public class SignedMessage
     {

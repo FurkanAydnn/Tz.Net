@@ -1,6 +1,36 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Security\mnemonic\wordlist\english.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Security\mnemonic\wordlist\english.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Base58Check" Version="0.2.0">
+      <NoWarn>NU1701</NoWarn>
+    </PackageReference>
+    <PackageReference Include="Chaos.NaCl.Core" Version="1.0.0" />
+    <PackageReference Include="Humanizer" Version="2.7.9" />
+    <PackageReference Include="Konscious.Security.Cryptography.Blake2" Version="1.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="3.1.2" />
+    <PackageReference Include="NBitcoin.Secp256k1" Version="1.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="NBitcoin" Version="5.0.27" />
+  </ItemGroup>
+
+</Project>
+
+
+<!-- <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeP2PAssets</TargetsForTfmSpecificBuildOutput>
     <Version>0.8.4</Version>
@@ -41,4 +71,4 @@
     </ItemGroup>
   </Target>
 
-</Project>
+</Project> -->

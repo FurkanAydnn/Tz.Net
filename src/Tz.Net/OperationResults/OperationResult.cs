@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 
-namespace Tz.Net
+namespace TezosSharp
 {
     public class OperationResult
     {

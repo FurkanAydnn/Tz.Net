@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Numerics;
 
-namespace Tz.Net
+namespace TezosSharp
 {
     public class ActivateAccountOperationResult : OperationResult
     {

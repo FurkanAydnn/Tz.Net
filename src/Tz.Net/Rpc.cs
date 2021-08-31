@@ -2,34 +2,25 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Numerics;
+using System.Threading;
 using System.Threading.Tasks;
-using Tz.Net.Extensions;
-using Tz.Net.Internal;
-using Tz.Net.Internal.OperationResultHandlers;
-using Tz.Net.Security;
+using TezosSharp.Extensions;
+using TezosSharp.Internal;
+using TezosSharp.Internal.OperationResultHandlers;
+using TezosSharp.Security;
 
-namespace Tz.Net
+namespace TezosSharp
 {
-    // http://doc.tzalpha.net/api/rpc_proposal.html#rpc-changes-june-2018
-
-    public enum Chain
-    {
-        Main = 0,
-        Test = 1
-        // Are there more?
-    }
-
     public class Rpc
     {
-        public const string DefaultProvider = "http://localhost:8732";
-
-        private static readonly HttpClient _client = new HttpClient();
-        private static Dictionary<string, IOperationHandler> _opHandlers = new Dictionary<string, IOperationHandler>
+        private readonly HttpClient _client;
+        private static readonly Dictionary<string, IOperationHandler> OpHandlers = new Dictionary<string, IOperationHandler>
         {
             {  Operations.ActivateAccount, new ActivateAccountOperationHandler() },
             {  Operations.Transaction, new TransactionOperationHandler() },
@@ -39,157 +30,242 @@ namespace Tz.Net
         private readonly string _provider;
         private readonly string _chain;
 
-        public Rpc()
-            : this(DefaultProvider)
-        { }
+        private readonly IHdWallet _wallet;
 
-        public Rpc(string provider)
-            : this(provider, Chain.Main)
-        { }
-
-        public Rpc(string provider, Chain chain)
-            : this(provider, chain.ToString().ToLower())
-        { }
-
-        public Rpc(string provider, string chain)
+        public Rpc(HttpClient client, string provider, IHdWallet wallet, string chain = "main")
         {
-            if (string.IsNullOrWhiteSpace(provider))
-            {
-                throw new ArgumentException("Provider required", nameof(provider));
-            }
-            else if (string.IsNullOrWhiteSpace(chain))
-            {
-                throw new ArgumentException("Chain required", nameof(chain));
-            }
-            _provider = provider;
-            _chain = chain;
+            _provider = provider ?? throw new ArgumentNullException(nameof(provider), "Provider required");
+            _chain = chain ?? throw new ArgumentNullException(nameof(chain), "Chain required");
+            _wallet = wallet;
+            _client = client;
         }
 
-        public async Task<JObject> Describe()
+        #region Rpc methods
+
+        public async Task<JObject> Describe(CancellationToken stoppingToken)
         {
             // There is curently a weird situation in alpha where the RPC will not honor any request without a recurse=true arg. // 8 Aug 2018
-            return await QueryJ<JObject>("describe?recurse=true");
+            return await QueryJ<JObject>("describe?recurse=true", stoppingToken);
         }
 
-        public async Task<JObject> GetHead()
+        public async Task<JObject> GetMempool(CancellationToken stoppingToken)
         {
-            return await QueryJ<JObject>($"chains/{_chain}/blocks/head");
+            return await QueryJ<JObject>($"chains/{_chain}/mempool/pending_operations", stoppingToken);
         }
 
-        public async Task<JObject> GetHeader()
+        public async Task<JObject> GetHead(CancellationToken stoppingToken)
         {
-            return await QueryJ<JObject>($"chains/{_chain}/blocks/head/header");
-        }
-        public async Task<JObject> GetBlockById(string id)
-        {
-            return await QueryJ<JObject>($"chains/{_chain}/blocks/{id}");
+            return await QueryJ<JObject>($"chains/{_chain}/blocks/head", stoppingToken);
         }
 
-        public async Task<JObject> GetAccountForBlock(string blockHash, string address)
+        public async Task<JObject> GetHeader(CancellationToken stoppingToken)
         {
-            return await QueryJ<JObject>($"chains/{_chain}/blocks/{blockHash}/context/contracts/{address}");
+            return await QueryJ<JObject>($"chains/{_chain}/blocks/head/header", stoppingToken);
         }
 
-        public async Task<BigFloat> GetBalance(string address)
+        public async Task<JObject> GetBlockById(ulong id, CancellationToken stoppingToken)
         {
-            JToken response = await QueryJ($"chains/{_chain}/blocks/head/context/contracts/{address}/balance");
+            return await QueryJ<JObject>($"chains/{_chain}/blocks/{id}", stoppingToken);
+        }
+
+        public async Task<JArray> GetOperationsByBlockId(ulong id, CancellationToken stoppingToken)
+        {
+            return await QueryJ<JArray>($"chains/{_chain}/blocks/{id}/operations", stoppingToken);
+        }
+
+        public async Task<JArray> GetTransactionHashListByBlockId(ulong id, CancellationToken stoppingToken)
+        {
+            return await QueryJ<JArray>($"chains/{_chain}/blocks/{id}/operation_hashes/3", stoppingToken);
+        }
+
+        public async Task<JArray> GetTransactionsListByBlockId(ulong id, CancellationToken stoppingToken)
+        {
+            return await QueryJ<JArray>($"chains/{_chain}/blocks/{id}/operations/3", stoppingToken);
+        }
+
+        public async Task<JObject> GetAccountForBlock(string blockHash, string address, CancellationToken stoppingToken)
+        {
+            return await QueryJ<JObject>($"chains/{_chain}/blocks/{blockHash}/context/contracts/{address}", stoppingToken);
+        }
+
+        public async Task<BigFloat> GetBalance(string address, CancellationToken stoppingToken)
+        {
+            JToken response = await QueryJ($"chains/{_chain}/blocks/head/context/contracts/{address}/balance", stoppingToken);
 
             return new BigFloat(response.ToString());
         }
 
-        public async Task<JObject> GetNetworkStat()
+        public async Task<JObject> GetNetworkStat(CancellationToken stoppingToken)
         {
-            return await QueryJ<JObject>("network/stat");
+            return await QueryJ<JObject>("network/stat", stoppingToken);
         }
 
-        public async Task<int> GetCounter(string address)
+        public async Task<ulong> GetCounter(string address, CancellationToken stoppingToken)
         {
-            JToken counter = await QueryJ($"chains/{_chain}/blocks/head/context/contracts/{address}/counter");
-            return Convert.ToInt32(counter.ToString());
+            JToken counter = await QueryJ($"chains/{_chain}/blocks/head/context/contracts/{address}/counter", stoppingToken);
+            return ulong.Parse(counter.ToString());
         }
 
-        public async Task<JToken> GetManagerKey(string address)
+        public async Task<JToken> GetManagerKey(string address, CancellationToken stoppingToken)
         {
-            return await QueryJ($"chains/{_chain}/blocks/head/context/contracts/{address}/manager_key");
+            return await QueryJ($"chains/{_chain}/blocks/head/context/contracts/{address}/manager_key", stoppingToken);
         }
+        #endregion
 
-        public async Task<ActivateAccountOperationResult> Activate(string address, string secret)
+        // TODO: 
+        // public async Task<ActivateAccountOperationResult> Activate(string address, string secret)
+        // {
+        //     JObject activateOp = new JObject();
+
+        //     activateOp["kind"] = Operations.ActivateAccount;
+        //     activateOp["pkh"] = address;
+        //     activateOp["secret"] = secret;
+
+        //     List<OperationResult> sendResults = await SendOperations(activateOp, null);
+
+        //     return sendResults.LastOrDefault() as ActivateAccountOperationResult;
+        // }
+
+        public async Task<SendTransactionOperationResult> SendTransaction(uint index, string to, BigFloat amountTez, BigFloat feeMTez, CancellationToken stoppingToken, BigFloat gasLimit = null, BigFloat storageLimit = null, JObject param = null)
         {
-            JObject activateOp = new JObject();
+            if (_wallet == null) throw new NullReferenceException(nameof(_wallet));
 
-            activateOp["kind"] = Operations.ActivateAccount;
-            activateOp["pkh"] = address;
-            activateOp["secret"] = secret;
+            Account hdWalletAccount = _wallet.GetAccount(index);
+            string fromAddress = hdWalletAccount.WalletAddress.Address;
 
-            List<OperationResult> sendResults = await SendOperations(activateOp, null);
+            gasLimit ??= 200;
+            storageLimit ??= 0;
 
-            return sendResults.LastOrDefault() as ActivateAccountOperationResult;
-        }
+            JObject head = await GetHeader(stoppingToken);
+            JObject account = await GetAccountForBlock(head["hash"].ToString(), fromAddress, stoppingToken);
 
-        public async Task<SendTransactionOperationResult> SendTransaction(Keys keys, string from, string to, BigFloat amount, BigFloat fee, BigFloat gasLimit = null, BigFloat storageLimit = null, JObject param = null)
-        {
-            gasLimit = gasLimit ?? 200;
-            storageLimit = storageLimit ?? 0;
-
-            JObject head = await GetHeader();
-            JObject account = await GetAccountForBlock(head["hash"].ToString(), from);
-
-            int counter = int.Parse(account["counter"].ToString());
+            ulong counter = ulong.Parse(account["counter"].ToString());
 
             JArray operations = new JArray();
 
-            JToken managerKey = await GetManagerKey(from);
+            JToken managerKey = await GetManagerKey(fromAddress, stoppingToken);
 
             string gas = gasLimit.ToString();
             string storage = storageLimit.ToString();
 
-            if (keys != null && string.IsNullOrEmpty(managerKey.ToString()))
+            if (string.IsNullOrEmpty(managerKey.ToString()))
             {
                 JObject revealOp = new JObject();
                 operations.AddFirst(revealOp);
 
                 revealOp["kind"] = "reveal";
                 revealOp["fee"] = "0";
-                revealOp["public_key"] = keys.DecryptPublicKey();
-                revealOp["source"] = from;
+                revealOp["public_key"] = hdWalletAccount.DecryptedPublicKey;
+                revealOp["source"] = fromAddress;
                 revealOp["storage_limit"] = storage;
                 revealOp["gas_limit"] = gas;
                 revealOp["counter"] = (++counter).ToString();
             }
 
             JObject transaction = new JObject();
-            operations.Add(transaction);
-
             transaction["kind"] = Operations.Transaction;
-            transaction["source"] = from;
-            transaction["fee"] = fee.ToString();
+            transaction["source"] = fromAddress;
+            transaction["fee"] = feeMTez.ToString();
             transaction["counter"] = (++counter).ToString();
             transaction["gas_limit"] = gas;
             transaction["storage_limit"] = storage;
-            transaction["amount"] = new BigFloat(amount.ToMicroTez().ToString(6)).Round().ToString(); // Convert to microtez, truncate at 6 digits, round up
+            // Convert to microtez, truncate at 6 digits, round up
+            transaction["amount"] = new BigFloat(amountTez.ToMicroTez().ToString(6)).Round().ToString();
             transaction["destination"] = to;
 
             if (param != null)
                 transaction["parameters"] = param;
-            else
-            {
-                // TODO: this one fails on run time
-                //JObject parameters = new JObject();
-                //transaction["parameters"] = parameters;
-                //parameters["prim"] = "Unit";
-                //parameters["args"] = new JArray(); // No args for this contract.
-            }
 
-            List<OperationResult> sendResults = await SendOperations(operations, keys, head);
+            //else
+            //{
+            //    JObject parameters = new JObject();
+            //    transaction["parameters"] = parameters;
+            //    parameters["prim"] = "Pair";
+            //    parameters["args"] = new JArray(new JProperty("string", DateTime.UtcNow.ToString(CultureInfo.InvariantCulture))); // No args for this contract.
+            //}
+
+            operations.Add(transaction);
+
+            List<OperationResult> sendResults = await SendOperations(hdWalletAccount, stoppingToken, operations, head);
 
             return sendResults.LastOrDefault() as SendTransactionOperationResult;
         }
 
-        private async Task<List<OperationResult>> SendOperations(JToken operations, Keys keys, JObject head = null)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="paymentTransactions"></param>
+        /// <param name="storageLimit"></param>
+        /// <param name="gasLimit"></param>
+        /// <param name="stoppingToken"></param>
+        /// <returns></returns>
+        public async Task<List<SendTransactionOperationResult>> SendMultipleTransaction(uint index, List<SendTransactionModel> paymentTransactions, BigFloat gasLimit, BigFloat storageLimit, CancellationToken stoppingToken)
+        {
+            if (_wallet == null) throw new NullReferenceException(nameof(_wallet));
+
+            gasLimit ??= 200;
+            storageLimit ??= 0;
+
+            Account hdWalletAccount = _wallet.GetAccount(index);
+            string fromAddress = hdWalletAccount.WalletAddress.Address;
+
+            JObject head = await GetHeader(stoppingToken);
+            JObject account = await GetAccountForBlock(head["hash"].ToString(), fromAddress, stoppingToken);
+            ulong counter = ulong.Parse(account["counter"].ToString());
+
+            JArray operations = new JArray();
+
+            JToken managerKey = await GetManagerKey(fromAddress, stoppingToken);
+
+            if (string.IsNullOrEmpty(managerKey.ToString()))
+            {
+                JObject revealOp = new JObject();
+                operations.AddFirst(revealOp);
+
+                revealOp["kind"] = "reveal";
+                revealOp["fee"] = "0";
+                revealOp["public_key"] = hdWalletAccount.DecryptedPublicKey;
+                revealOp["source"] = fromAddress;
+                revealOp["storage_limit"] = storageLimit.ToString();
+                revealOp["gas_limit"] = gasLimit.ToString();
+                revealOp["counter"] = (++counter).ToString();
+            }
+
+            foreach (var paymentTransaction in paymentTransactions)
+            {
+                paymentTransaction.GasLimit ??= 200;
+                paymentTransaction.StorageLimit ??= 0;
+
+                string gas = paymentTransaction.GasLimit.ToString();
+                string storage = paymentTransaction.StorageLimit.ToString();
+
+                JObject transaction = new JObject
+                {
+                    ["kind"] = Operations.Transaction,
+                    ["source"] = fromAddress,
+                    ["fee"] = paymentTransaction.FeeMTez.ToString(),
+                    ["counter"] = (++counter).ToString(),
+                    ["gas_limit"] = gas,
+                    ["storage_limit"] = storage,
+                    // Convert to microtez, truncate at 6 digits, round up
+                    ["amount"] = new BigFloat(paymentTransaction.AmountTez.ToMicroTez().ToString(6)).Round().ToString(),
+                    ["destination"] = paymentTransaction.To
+                };
+
+                operations.Add(transaction);
+            }
+
+            List<OperationResult> sendResults = await SendOperations(hdWalletAccount, stoppingToken, operations, head);
+
+            return sendResults?.Select(x => x as SendTransactionOperationResult).ToList();
+        }
+
+        private async Task<List<OperationResult>> SendOperations(Account hdWalletAccount, CancellationToken stoppingToken, JToken operations, JObject head = null)
         {
             if (head == null)
             {
-                head = await GetHeader();
+                head = await GetHeader(stoppingToken);
             }
 
             JArray arrOps = operations as JArray;
@@ -198,29 +274,13 @@ namespace Tz.Net
                 arrOps = new JArray(operations);
             }
 
-            JToken forgedOpGroup = await ForgeOperations(head, arrOps);
+            JToken forgedOpGroup = await ForgeOperations(head, arrOps, stoppingToken);
 
-            // TODO: Not sure about what is this for
-            //if (keys == null)
-            //{
-            //    signedOpGroup = new SignedMessage
-            //    {
-            //        SignedBytes = forgedOpGroup.ToString() + "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-            //        EncodedSignature = "edsigtXomBKi5CTRf5cjATJWSyaRvhfYNHqSUGrn4SdbYRcGwQrUGjzEfQDTuqHhuA8b2d8NarZjz8TRf65WkpQmo423BtomS8Q"
-            //    };
-            //}
-            //else
-            //{
-            //    Crypto c = new Crypto();
-            //    signedOpGroup = c.Sign(forgedOpGroup.ToString(), keys, Watermark.Generic);
-            //}
+            SignedMessage signedOpGroup = hdWalletAccount.Sign(forgedOpGroup.ToString(), Watermark.Generic);
 
-            Crypto c = new Crypto();
-            SignedMessage signedOpGroup = c.Sign(forgedOpGroup.ToString(), keys, Watermark.Generic);
+            List<OperationResult> opResults = await PreApplyOperations(head, arrOps, signedOpGroup.EncodedSignature, stoppingToken);
 
-            List<OperationResult> opResults = await PreApplyOperations(head, arrOps, signedOpGroup.EncodedSignature);
-
-            ///deleting too big contractCode from response
+            //deleting too big contractCode from response
             foreach (var opResult in opResults)
             {
                 if (opResult.Data?["metadata"]?["operation_result"]?["status"]?.ToString() == "failed")
@@ -233,29 +293,28 @@ namespace Tz.Net
                 }
             }
 
-            string op_hash = "";
+            string opHash = "";
 
-            if (opResults.All(op => op.Succeeded))
-            {
-                JToken injectedOperation = await InjectOperations(signedOpGroup.SignedBytes);
-                op_hash = injectedOperation.ToString();
-                opResults.LastOrDefault().Data["op_hash"] = op_hash;
-            }
+            if (!opResults.All(op => op.Succeeded)) return opResults;
+
+            JToken injectedOperation = await InjectOperations(signedOpGroup.SignedBytes, stoppingToken);
+            opHash = injectedOperation.ToString();
+            opResults.LastOrDefault().Data["op_hash"] = opHash;
 
             return opResults;
         }
 
-        private async Task<JToken> ForgeOperations(JObject blockHead, JArray operations)
+        private async Task<JToken> ForgeOperations(JObject blockHead, JArray operations, CancellationToken stoppingToken)
         {
             JObject contents = new JObject();
 
             contents["branch"] = blockHead["hash"];
             contents["contents"] = operations;
 
-            return await QueryJ($"chains/{_chain}/blocks/head/helpers/forge/operations", contents);
+            return await QueryJ($"chains/{_chain}/blocks/head/helpers/forge/operations", stoppingToken, contents);
         }
 
-        private async Task<List<OperationResult>> PreApplyOperations(JObject head, JArray operations, string signature)
+        private async Task<List<OperationResult>> PreApplyOperations(JObject head, JArray operations, string signature, CancellationToken stoppingToken)
         {
             JArray payload = new JArray();
             JObject jsonObject = new JObject();
@@ -266,40 +325,39 @@ namespace Tz.Net
             jsonObject["contents"] = operations;
             jsonObject["signature"] = signature;
 
-            JArray result = await QueryJ<JArray>($"chains/{_chain}/blocks/head/helpers/preapply/operations", payload);
+            JArray result = await QueryJ<JArray>($"chains/{_chain}/blocks/head/helpers/preapply/operations", stoppingToken, payload);
 
             return ParseApplyOperationsResult(result);
         }
 
-        private async Task<JToken> InjectOperations(string signedBytes)
+        private async Task<JToken> InjectOperations(string signedBytes, CancellationToken stoppingToken)
         {
-            return await QueryJ<JValue>($"injection/operation?chain={_chain}", new JRaw($"\"{signedBytes}\""));
+            return await QueryJ<JValue>($"injection/operation?chain={_chain}", stoppingToken, new JRaw($"\"{signedBytes}\""));
         }
 
         private List<OperationResult> ParseApplyOperationsResult(JArray appliedOps)
         {
             List<OperationResult> operationResults = new List<OperationResult>();
 
-            if (appliedOps?.Count > 0)
+            if (!(appliedOps?.Count > 0)) return operationResults;
+
+            if (!(appliedOps.First["contents"] is JArray contents)) return operationResults;
+
+            foreach (JToken content in contents)
             {
-                JArray contents = appliedOps.First["contents"] as JArray;
+                string kind = content["kind"].ToString();
 
-                foreach (JToken content in contents)
+                if (!string.IsNullOrWhiteSpace(kind))
                 {
-                    string kind = content["kind"].ToString();
+                    IOperationHandler handler = OpHandlers[kind];
 
-                    if (!string.IsNullOrWhiteSpace(kind))
+                    if (handler != null)
                     {
-                        IOperationHandler handler = _opHandlers[kind];
+                        OperationResult opResult = handler.ParseApplyOperationsResult(content);
 
-                        if (handler != null)
+                        if (opResult != null)
                         {
-                            OperationResult opResult = handler.ParseApplyOperationsResult(content);
-
-                            if (opResult != null)
-                            {
-                                operationResults.Add(opResult);
-                            }
+                            operationResults.Add(opResult);
                         }
                     }
                 }
@@ -308,24 +366,24 @@ namespace Tz.Net
             return operationResults;
         }
 
-        private async Task<JToken> QueryJ(string ep, JToken data = null)
+        private async Task<JToken> QueryJ(string ep, CancellationToken stoppingToken, JToken data = null)
         {
-            return await QueryJ<JToken>(ep, data);
+            return await QueryJ<JToken>(ep, stoppingToken, data);
         }
 
-        private async Task<JType> QueryJ<JType>(string ep, JToken data = null)
+        private async Task<JType> QueryJ<JType>(string ep, CancellationToken stoppingToken, JToken data = null)
             where JType : JToken
         {
-            return (JType)JToken.Parse(await Query(ep, data?.ToString(Formatting.None)));
+            return (JType)JToken.Parse(await Query(ep, stoppingToken, data?.ToString(Formatting.None)));
         }
 
-        private async Task<string> Query(string ep, object data = null)
+        private async Task<string> Query(string ep, CancellationToken stoppingToken, object data = null)
         {
             bool get = data == null;
 
             HttpRequestMessage request = new HttpRequestMessage(get ? HttpMethod.Get : HttpMethod.Post, $"{_provider}/{ep}")
             {
-                Version = HttpVersion.Version11 // Tezos node does not like the default v2.
+                Version = HttpVersion.Version11, // Tezos node does not like the default v2.
             };
 
             if (!get)
@@ -334,22 +392,27 @@ namespace Tz.Net
                 request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             }
 
-            HttpResponseMessage response = await _client.SendAsync(request);
+            HttpResponseMessage response = await _client.SendAsync(request, stoppingToken);
 
             string responseBody = await response.Content.ReadAsStringAsync();
 
-            if (response?.IsSuccessStatusCode == false)
+            if (response.IsSuccessStatusCode)
             {
-                // If failed, throw the body as the exception message.
-                if (!string.IsNullOrWhiteSpace(responseBody))
-                {
-                    throw new HttpRequestException(responseBody);
-                }
-                else
-                {
-                    // Otherwise, throw a generic exception.
-                    response.EnsureSuccessStatusCode();
-                }
+                response.Content.Headers.TryGetValues("Content-Type", out IEnumerable<string> contentTypes);
+                return contentTypes.Any(c => c != null && c.StartsWith("text/plain"))
+                    ? JsonConvert.SerializeObject(responseBody)
+                    : responseBody;
+            }
+
+            // If failed, throw the body as the exception message.
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                throw new HttpRequestException(responseBody);
+            }
+            else
+            {
+                // Otherwise, throw a generic exception.
+                response.EnsureSuccessStatusCode();
             }
 
             return responseBody;

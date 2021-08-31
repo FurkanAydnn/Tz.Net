@@ -632,22 +632,22 @@ namespace System.Numerics
 
         public static explicit operator decimal(BigFloat value)
         {
-            if (decimal.MinValue > value) throw new System.OverflowException("value is less than System.decimal.MinValue.");
-            if (decimal.MaxValue < value) throw new System.OverflowException("value is greater than System.decimal.MaxValue.");
+            if (new BigFloat(new BigInteger(decimal.MinValue)) > value) throw new System.OverflowException("value is less than System.decimal.MinValue.");
+            if (new BigFloat(new BigInteger(decimal.MaxValue)) < value) throw new System.OverflowException("value is greater than System.decimal.MaxValue.");
 
             return (decimal)value.numerator / (decimal)value.denominator;
         }
         public static explicit operator double(BigFloat value)
         {
-            if (double.MinValue > value) throw new System.OverflowException("value is less than System.double.MinValue.");
-            if (double.MaxValue < value) throw new System.OverflowException("value is greater than System.double.MaxValue.");
+            if (new BigFloat(new BigInteger(double.MinValue)) > value) throw new System.OverflowException("value is less than System.double.MinValue.");
+            if (new BigFloat(new BigInteger(double.MaxValue)) < value) throw new System.OverflowException("value is greater than System.double.MaxValue.");
 
             return (double)value.numerator / (double)value.denominator;
         }
         public static explicit operator float(BigFloat value)
         {
-            if (float.MinValue > value) throw new System.OverflowException("value is less than System.float.MinValue.");
-            if (float.MaxValue < value) throw new System.OverflowException("value is greater than System.float.MaxValue.");
+            if (new BigFloat(new BigInteger(float.MinValue)) > value) throw new System.OverflowException("value is less than System.float.MinValue.");
+            if (new BigFloat(new BigInteger(float.MaxValue)) < value) throw new System.OverflowException("value is greater than System.float.MaxValue.");
 
             return (float)value.numerator / (float)value.denominator;
         }
