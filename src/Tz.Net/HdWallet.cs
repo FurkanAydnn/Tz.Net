@@ -1,8 +1,8 @@
-using System;
 using System.Collections.Generic;
 using NBitcoin;
 using TezosSharp.Internal;
 using TezosSharp.Security;
+using Mnemonic = NBitcoin.Mnemonic;
 
 namespace TezosSharp
 {
