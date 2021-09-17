@@ -73,7 +73,7 @@ namespace TezosSharp.Security
 
                 if (hexdigest != wordListDigest)
                 {
-                    throw new ArgumentException("wordlist digest mismatch");
+                    throw new ArgumentException($"wordlist digest mismatch {hexdigest} - {wordListDigest}");
                 }
             }
         }
