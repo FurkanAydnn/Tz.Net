@@ -5,11 +5,11 @@ using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Tz.Net.Extensions;
-using Tz.Net.Security;
-using Tz.Net.Internal;
+using TezosSharp.Extensions;
+using TezosSharp.Security;
+using TezosSharp.Internal;
 
-namespace Tz.Net
+namespace TezosSharp
 {
     public class Wallet
     {
@@ -35,10 +35,7 @@ namespace Tz.Net
         /// <param name="passphrase">Passphrase to generate seed</param>
         public Wallet(string passphrase)
         {
-            Crypto c = new Crypto();
-
-            string mnemonic = c.GenerateMnemonic();
-
+            string mnemonic = CryptoBase.GenerateMnemonic();
             FromMnemonic(mnemonic, passphrase);
         }
 
@@ -161,40 +158,6 @@ namespace Tz.Net
         }
 
         /// <summary>
-        /// Activate this wallet on the blockchain. This can only be done once.
-        /// </summary>
-        /// <param name="activationCode">The blinded publich hash used to activate this wallet.</param>
-        /// <returns>The result of the activation operation.</returns>
-        public async Task<OperationResult> Activate(string activationCode)
-        {
-            return await new Rpc(Provider).Activate(Keys.PublicHash, activationCode);
-        }
-
-        /// <summary>
-        /// Get the balance of the wallet.
-        /// </summary>
-        /// <returns>The balance of the wallet.</returns>
-        public async Task<BigFloat> GetBalance()
-        {
-            return await new Rpc(Provider).GetBalance(Keys.PublicHash);
-        }
-
-        /// <summary>
-        /// Transfer funds from one wallet to another.
-        /// </summary>
-        /// <param name="from">From where to transfer the funds.</param>
-        /// <param name="to">To where the funds should be transferred.</param>
-        /// <param name="amount">The amount to transfer.</param>
-        /// <param name="fee">The fee to transfer.</param>
-        /// <param name="gasLimit">The gas limit to transfer.</param>
-        /// <param name="storageLimit">The storage limit to transfer.</param>
-        /// <returns>The result of the transfer operation.</returns>
-        public async Task<OperationResult> Transfer(string from, string to, BigFloat amount, BigFloat fee, BigFloat gasLimit = null, BigFloat storageLimit = null)
-        {
-            return await new Rpc(Provider).SendTransaction(Keys, from, to, amount, fee, gasLimit, storageLimit);
-        }
-
-        /// <summary>
         /// The seed used to generate the wallet keys.
         /// </summary>
         public byte[] Seed { get; internal set; }
@@ -217,12 +180,7 @@ namespace Tz.Net
         /// <summary>
         /// This wallet's public hash.
         /// </summary>
-        public string PublichHash => Keys?.PublicHash;
-
-        /// <summary>
-        /// Get or set the provider address to make RPC calls to. Default is http://localhost:8732.
-        /// </summary>
-        public string Provider { get; set; } = Rpc.DefaultProvider;
+        public string PublicHash => Keys?.PublicHash;
 
         public static Wallet FromStringSeed(string seed, byte[] prefix = null)
         {

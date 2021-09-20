@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Tz.Net.Extensions
+namespace TezosSharp.Extensions
 {
     public static class StringExtensions
     {

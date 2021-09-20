@@ -1,7 +1,7 @@
 ﻿using System;
-using Tz.Net.Extensions;
+using TezosSharp.Extensions;
 
-namespace Tz.Net.Internal
+namespace TezosSharp.Internal
 {
     /**
      * Base58 is a way to encode Bitcoin addresses (or arbitrary data) as alphanumeric strings.
