@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -12,8 +10,6 @@ namespace TezosSharp.Security
     public class Bip39
     {
         private List<string> wordList;
-
-        private static readonly string BIP39_ENGLISH_RESOURCE_NAME = "mnemonic.wordlist.english.txt";
         private static readonly string BIP39_ENGLISH_SHA256 = "cad18e21a5354694610e49b147526db1b2c32f63dc4aff6cb0bc03690f757db1";
         //private static readonly String BIP39_ENGLISH_SHA256 = "ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db";
 
@@ -32,43 +28,36 @@ namespace TezosSharp.Security
         /// <summary>
         /// Initialise from the included word list.
         /// </summary>
-        public Bip39()
-            : this(OpenDefaultWords(), BIP39_ENGLISH_SHA256)
-        { }
+        public Bip39() : this(BIP39_ENGLISH_SHA256) { }
 
         /// <summary>
         /// Creates an MnemonicCode object, initializing with words read from the supplied input stream.  If a wordListDigest
         /// is supplied the digest of the words will be checked.
         /// <summary>
-        public Bip39(Stream wordStream, string wordListDigest)
+        public Bip39(string wordListDigest)
         {
             byte[] wordBytes = null;
 
             SHA256 md = SHA256.Create();
             md.Initialize();
 
-            using (BufferedStream bs = new BufferedStream(wordStream))
-            using (StreamReader br = new StreamReader(bs, Encoding.UTF8))
+            wordList = new List<string>(2048);
+
+            foreach (var word in Mnemonic.MnemonicWords)
             {
-                wordList = new List<string>(2048);
+                wordList.Add(word);
 
-                string word;
-                while ((word = br.ReadLine()) != null)
-                {
-                    wordList.Add(word);
+                wordBytes = Encoding.UTF8.GetBytes(word);
 
-                    wordBytes = Encoding.UTF8.GetBytes(word);
-
-                    md.TransformBlock(wordBytes, 0, wordBytes.Length, wordBytes, 0);
-                }
-
-                if (wordBytes == null)
-                {
-                    throw new ArgumentException("input stream was empty");
-                }
-
-                md.TransformFinalBlock(wordBytes, 0, wordBytes.Length);
+                md.TransformBlock(wordBytes, 0, wordBytes.Length, wordBytes, 0);
             }
+
+            if (wordBytes == null)
+            {
+                throw new ArgumentException("input stream was empty");
+            }
+
+            md.TransformFinalBlock(wordBytes, 0, wordBytes.Length);
 
             if (wordList.Count != 2048)
             {
@@ -84,7 +73,7 @@ namespace TezosSharp.Security
 
                 if (hexdigest != wordListDigest)
                 {
-                    throw new ArgumentException("wordlist digest mismatch");
+                    throw new ArgumentException($"wordlist digest mismatch {hexdigest} - {wordListDigest}");
                 }
             }
         }
@@ -224,18 +213,6 @@ namespace TezosSharp.Security
             }
 
             return words;
-        }
-
-        private static Stream OpenDefaultWords()
-        {
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(typeof(Bip39), BIP39_ENGLISH_RESOURCE_NAME);
-
-            if (stream == null)
-            {
-                throw new FileNotFoundException(BIP39_ENGLISH_RESOURCE_NAME);
-            }
-
-            return stream;
         }
 
         private static string BytesToHex(byte[] bytes)
