@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NBitcoin;
+using NBitcoin.DataEncoders;
 using TezosSharp.Internal;
 using TezosSharp.Security;
 using Mnemonic = NBitcoin.Mnemonic;
@@ -63,7 +64,13 @@ namespace TezosSharp
 
         public static HdWallet FromMasterKey(string masterKey)
         {
-            BitcoinExtKey bitcoinExtKey = new BitcoinExtKey(masterKey);
+            BitcoinExtKey bitcoinExtKey = new BitcoinExtKey(masterKey, Network.Main);
+            return new HdWallet(bitcoinExtKey);
+        }
+
+        public static HdWallet FromMasterKey(string masterKey, Network expectedNetwork)
+        {
+            BitcoinExtKey bitcoinExtKey = new BitcoinExtKey(masterKey, expectedNetwork);
             return new HdWallet(bitcoinExtKey);
         }
 
@@ -87,13 +94,13 @@ namespace TezosSharp
         HdWallet(Mnemonic mneumonic)
         {
             byte[] seed = mneumonic.DeriveSeed("");
-            _masterKey = new ExtKey(seed);
+            _masterKey = ExtKey.CreateFromSeed(seed);
         }
 
         HdWallet(Mnemonic mneumonic, string passphrase)
         {
             byte[] seed = mneumonic.DeriveSeed(passphrase);
-            _masterKey = new ExtKey(seed);
+            _masterKey = ExtKey.CreateFromSeed(seed);
         }
 
         IEnumerable<WalletAddress> IHdWallet.GetAddress(uint from, int size)
